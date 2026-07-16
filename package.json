@@ -1,0 +1,13 @@
+{
+  "name": "hank-sales-os",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "lint": "node --check api/discover.js && node --check api/cron-discover.js && node --check api/draft.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
