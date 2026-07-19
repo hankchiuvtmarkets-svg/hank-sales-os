@@ -11,10 +11,12 @@ test('schema contains every table used by the backend', () => {
   }
 });
 
-test('keyless automatic lead feed has a stable frontend contract', () => {
-  assert.equal('generated_at' in automaticFeed, true);
-  assert.equal(typeof automaticFeed.strategy_summary, 'string');
-  assert.equal(Array.isArray(automaticFeed.leads), true);
+test('keyless automatic lead feed is encrypted before publication', () => {
+  assert.equal(automaticFeed.version, 1);
+  assert.equal(automaticFeed.algorithm, 'AES-256-GCM');
+  assert.equal(automaticFeed.kdf, 'PBKDF2-SHA-256');
+  assert.equal(typeof automaticFeed.ciphertext, 'string');
+  assert.equal('leads' in automaticFeed, false);
 });
 
 test('schema contains status, cost, deduplication and dashboard fields', () => {
