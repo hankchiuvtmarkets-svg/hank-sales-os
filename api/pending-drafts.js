@@ -1,4 +1,3 @@
-import { publicConfiguration, resolveAgentSettings } from '../lib/config.js';
 import {
   createRepository,
   requireDashboardAuthorized,
@@ -11,19 +10,13 @@ export default async function handler(req, res) {
   if (!requireDashboardAuthorized(req, res)) return;
   try {
     const status = await createRepository().getAgentStatus();
-    const configured = publicConfiguration();
     return res.status(200).json({
       ok: true,
-      configured,
-      setupComplete: Object.values(configured).every(Boolean),
-      leadCount: status.leadCount,
-      pendingDraftCount: status.pendingDraftCount,
-      pendingDrafts: status.pendingDrafts,
-      recentRuns: status.recentRuns,
-      limits: resolveAgentSettings(status.settings)
+      count: status.pendingDraftCount,
+      drafts: status.pendingDrafts
     });
   } catch (error) {
-    console.error(JSON.stringify({ event: 'agent_status_failed', message: error.message }));
+    console.error(JSON.stringify({ event: 'pending_drafts_failed', message: error.message }));
     return res.status(500).json(safeErrorResponse(error));
   }
 }

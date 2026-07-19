@@ -1,19 +1,155 @@
 # Hank Sales OS
 
-給 Hank 個人使用的陌生開發與客戶追蹤系統。
+Hank 個人使用的 AI Sales Agent，聚焦韓國、日本市場的 EA 開發者、交易社群主、IB、金融內容創作者與潛在交易客戶。
 
-## MVP 功能
+系統只搜尋公開網頁、建立 CRM 名單與產生待批准草稿。**不會自動發送第一封陌生私訊**，也不會登入社群帳號、繞過平台限制或抓取私人資料。
 
-- 新增、編輯與刪除潛在客戶
-- 依國家、平台、階段與關鍵字篩選
-- 根據社群活躍度、受眾規模、合作訊號與需求痛點計算優先分數
-- 產生日文、韓文與繁體中文破冰草稿
-- 設定下次追蹤日期並顯示今日／逾期提醒
-- 使用瀏覽器 LocalStorage 保存資料
-- 匯出、匯入 JSON 備份
+## 目前狀態
 
-## 使用方式
+可用：
 
-直接開啟 `index.html` 即可使用；也可以部署到 GitHub Pages、Netlify 或 Vercel。
+- 靜態 CRM、今日工作台、客戶雷達、成交漏斗與本機訊息助手
+- LocalStorage 客戶資料、JSON 匯出與匯入
+- Supabase 健康檢查與 `agent_settings` 實際讀取
+- OpenAI 韓文／日文搜尋策略產生
+- Tavily 公開網頁搜尋
+- URL 正規化、全域重複 URL 排除、同平台帳號與 lead 去重
+- 文章、貼文、搜尋頁、標籤頁與無效社群結果排除
+- AI 背景分析、痛點、合作分數與韓／日文破冰草稿
+- `search_runs`、`search_results`、`leads`、`message_drafts`、`activities` 完整寫入流程
+- 每日搜尋次數與估算成本上限
+- 外部 API／資料庫錯誤的結構化 server log 與 run log
+- 前端讀取雲端 leads、最近執行、結果數、新客戶數、失敗原因與待批准草稿
+- 個人 Dashboard Token 保護雲端 CRM 與訊息草稿
+- Vercel 每日排程（`01:00 UTC`，台北時間 `09:00`）
 
-> 第一版不會自動大量私訊或未經允許爬取社群平台，以降低帳號受限風險。後續可接合法 API、RSS、Google 搜尋結果或手動匯入名單。
+仍需外部設定後才可用：
+
+- 真正的每日 Agent：需要 `OPENAI_API_KEY` 與 `TAVILY_API_KEY`
+- 雲端 Dashboard：需要 `DASHBOARD_TOKEN`
+- Supabase 新欄位與安全設定：需要先執行最新版 `supabase/schema.sql`
+- LocalStorage 手動名單目前仍保留在瀏覽器；本階段只把 AI 找到的雲端 leads 以唯讀方式合併顯示，避免在公開前端直接開放 service-role 寫入
+- 尚未接任何訊息平台官方 API，也沒有自動發訊息功能
+
+## 架構
+
+```text
+Vercel Cron
+  -> /api/cron-discover
+  -> /api/run-agent
+      -> OpenAI：產生韓／日文搜尋策略
+      -> Tavily：搜尋公開網頁
+      -> 本機規則：正規化、去重、排除文章頁
+      -> OpenAI：分析、評分、產生草稿
+      -> Supabase：run/result/lead/draft/activity
+
+Browser Dashboard
+  -> LocalStorage：既有手動 CRM
+  -> Dashboard Token
+  -> /api/agent-status + /api/cloud-leads
+  -> Supabase 雲端結果（唯讀顯示）
+```
+
+主要程式：
+
+- `lib/agent.js`：完整 Agent orchestration 與成本／搜尋限制
+- `lib/providers.js`：OpenAI、Tavily client 與 provider error
+- `lib/normalization.js`：URL、帳號、平台判斷與候選頁過濾
+- `lib/repository.js`：所有 Supabase 讀寫
+- `lib/server.js`：Supabase client、Cron/Dashboard authorization
+- `supabase/schema.sql`：可重複執行的 canonical schema／migration
+- `index.html`：現有 CRM 與雲端狀態介面
+
+## API
+
+| Route | Method | Authorization | 用途 |
+|---|---:|---|---|
+| `/api/health` | GET | 無 | Supabase 與環境變數布林狀態，不回傳 secret |
+| `/api/discover` | POST | `Bearer CRON_SECRET` | 只產生並保存搜尋策略，不執行搜尋 |
+| `/api/run-agent` | POST | `Bearer CRON_SECRET` | 執行完整 Agent 流程 |
+| `/api/cron-discover` | GET/POST | `Bearer CRON_SECRET` | Vercel Cron 入口 |
+| `/api/agent-status` | GET | `Bearer DASHBOARD_TOKEN` | 執行狀態、限制與待批准草稿 |
+| `/api/cloud-leads` | GET | `Bearer DASHBOARD_TOKEN` | 讀取雲端 leads |
+| `/api/pending-drafts` | GET | `Bearer DASHBOARD_TOKEN` | 讀取待批准草稿 |
+
+任何 API 都沒有「發送訊息」動作。
+
+## Supabase
+
+在 Supabase SQL Editor 執行整份 [`supabase/schema.sql`](supabase/schema.sql)。SQL 使用 `create ... if not exists` 與 `alter ... add column if not exists`，可用來升級既有資料表，不會刪除現有資料。
+
+資料表：
+
+- `agent_settings`：開關、市場、目標、每日限制
+- `search_runs`：開始／完成時間、狀態、數量、成本估算、失敗原因、logs
+- `search_results`：原始 URL、canonical URL、候選判斷與排除原因
+- `leads`：正規化帳號、背景、痛點、分數與來源
+- `message_drafts`：只建立 `pending_approval` 草稿
+- `activities`：lead discovery 與後續活動紀錄
+
+所有資料表會啟用 RLS；serverless API 使用 Vercel 內的 service role key。不要把 service role key 放到前端或 GitHub。
+Schema 也會明確授權上述六張表給 `service_role`，但不會授權瀏覽器的 `anon` 角色直接讀取 CRM。
+
+## Vercel Environment Variables
+
+必要：
+
+| 變數 | 說明 |
+|---|---|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | 僅限 Vercel server-side |
+| `APP_URL` | 例如 `https://hank-sales-os.vercel.app` |
+| `CRON_SECRET` | Vercel Cron 與 Agent API 的 server secret |
+| `DASHBOARD_TOKEN` | 自訂高強度隨機字串；登入個人 Dashboard 使用 |
+| `OPENAI_API_KEY` | OpenAI API key |
+| `OPENAI_MODEL` | 預設 `gpt-5-mini` |
+| `TAVILY_API_KEY` | Tavily Search API key |
+
+限制（已有安全預設，可選擇在 Vercel 覆寫）：
+
+| 變數 | 預設 | 說明 |
+|---|---:|---|
+| `DAILY_SEARCH_LIMIT` | `6` | 每日最多 Tavily 搜尋次數 |
+| `DAILY_COST_LIMIT_USD` | `1.00` | 每日估算成本上限 |
+| `MAX_RESULTS_PER_QUERY` | `5` | 每個 query 最多結果 |
+| `MIN_LEAD_SCORE` | `55` | 建立 lead 的最低分 |
+| `OPENAI_RESERVE_PER_CALL_USD` | `0.05` | 每次 OpenAI call 的預算保留值 |
+| `TAVILY_COST_PER_SEARCH_USD` | `0.01` | 每次搜尋的估算值 |
+| `OPENAI_INPUT_COST_PER_MILLION_USD` | `0.25` | token 成本估算參數 |
+| `OPENAI_OUTPUT_COST_PER_MILLION_USD` | `2.00` | token 成本估算參數 |
+| `OPENAI_MAX_OUTPUT_TOKENS` | `2000` | 每次 AI 回覆的輸出 token 上限 |
+
+成本上限是根據 provider 用量與上述估算值做的應用層保護；帳務仍以 OpenAI/Tavily 控制台為準。也建議在兩個 provider 後台另外設定 hard budget／usage alert。
+
+不要把任何真實 secret 寫入 `.env.example`、GitHub、前端程式或 issue。
+
+## 本機驗證
+
+需求：Node.js 20+。
+
+```bash
+npm install
+npm run check
+```
+
+`npm run check` 會執行：
+
+- 所有 API、library、test 與 script 的 JavaScript syntax check
+- `index.html` inline JavaScript parse check
+- URL 正規化與候選頁過濾測試
+- OpenAI JSON parse 測試
+- 完整 strategy → search → result → lead → draft → activity 流程測試
+- 重複 lead、每日限制、health 與 schema consistency 測試
+
+測試不會呼叫真實 OpenAI、Tavily 或 Supabase，因此不需要本機 secret，也不會產生成本。
+
+## 部署順序
+
+1. 在 Supabase SQL Editor 執行最新版 `supabase/schema.sql`。
+2. 在 Vercel Project Settings → Environment Variables 新增缺少的變數。
+3. 重新部署 Production，讓新增／更新的環境變數生效。
+4. 開啟 `/api/health`，確認 `ok: true` 且 `agentSettingsRows` 至少為 `1`。
+5. 開啟首頁，輸入你設定的 `DASHBOARD_TOKEN`；token 只存於該瀏覽器分頁的 `sessionStorage`。
+6. 等待每日排程，或用有 `CRON_SECRET` 的安全工具對 `/api/run-agent` 發出一次授權 POST 做 smoke test。不要把 secret 貼到聊天、截圖或公開終端輸出。
+
+Vercel 會由 `vercel.json` 在每日 `01:00 UTC` 呼叫 `/api/cron-discover`。

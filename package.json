@@ -1,13 +1,15 @@
 {
   "name": "hank-sales-os",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
-    "lint": "node --check api/discover.js && node --check api/cron-discover.js && node --check api/draft.js"
+    "lint": "find api lib test scripts -name '*.js' -exec node --check {} \\; && node scripts/check-index-js.js",
+    "test": "node --test",
+    "check": "npm run lint && npm test"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "2.45.0"
   }
 }
