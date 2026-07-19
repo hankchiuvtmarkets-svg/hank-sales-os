@@ -54,7 +54,7 @@ Browser Dashboard
 
 ### 每日零金鑰名單
 
-`data/auto-leads.json` 是 AES-256-GCM 加密後的研究資料。ChatGPT 排程每天決定韓國／日本目標類型、產生搜尋策略、搜尋公開頁面、去除文章與重複帳號、分析痛點與合作可能性，再加密更新這個檔案。GitHub 更新會觸發 Vercel 自動部署，首頁使用私人解鎖碼在瀏覽器本機解密；公開 repo 不會暴露目標帳號、評分、痛點或破冰草稿。
+`data/auto-leads.json` 是 AES-256-GCM 加密後的研究資料。ChatGPT 排程每天決定韓國／日本目標類型、產生搜尋策略、搜尋公開頁面、去除文章與重複帳號、分析痛點與合作可能性，再加密更新這個檔案。加密內容另外保留最多 2,000 個已辨識對象與最近 90 次搜尋紀錄；即使某位對象沒有進入目前的高分名單，之後再次出現仍會被辨識為舊對象。GitHub 更新會觸發 Vercel 自動部署，首頁使用私人解鎖碼在瀏覽器本機解密；公開 repo 不會暴露目標帳號、評分、痛點或破冰草稿。
 
 這條路徑只保存公開帳號與商務研究，不保存私人聯絡資料，也不發送訊息。Supabase／OpenAI／Tavily 後端仍完整保留，日後設定 API keys 後可作為更高頻率的第二條管線。
 
@@ -65,6 +65,7 @@ Browser Dashboard
 - `lib/normalization.js`：URL、帳號、平台判斷與候選頁過濾
 - `lib/repository.js`：所有 Supabase 讀寫
 - `lib/server.js`：Supabase client、Cron/Dashboard authorization
+- `scripts/auto-feed-merge.js`：自動名單永久去重、首次／最近發現與搜尋歷史
 - `supabase/schema.sql`：可重複執行的 canonical schema／migration
 - `index.html`：現有 CRM 與雲端狀態介面
 
