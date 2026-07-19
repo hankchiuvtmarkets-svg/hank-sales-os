@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { executeAgent } from '../lib/agent.js';
+import { executeAgent, validatedLeads } from '../lib/agent.js';
 
 function fakeRepository({ existing = [], usage = { searchCount: 0, costUsd: 0 } } = {}) {
   const state = { runs: [], results: [], leads: [], drafts: [], activities: [], existing };
@@ -129,4 +129,20 @@ test('executeAgent persists clear provider failure logs when all searches fail',
   assert.equal(failedRun.search_count, 2);
   assert.equal(failedRun.logs.filter((entry) => entry.provider === 'Tavily').length, 2);
   assert.equal(failedRun.logs[1].status, 429);
+});
+
+test('validated leads support Hong Kong and Macau with Chinese drafts', () => {
+  const candidate = {
+    canonicalUrl: 'https://example.hk/trader', title: 'HK Trader', content: 'MT5 社群',
+    query: '香港 MT5 社群', market: '香港', platform: 'Website'
+  };
+  const leads = validatedLeads({ leads: [{
+    result_url: candidate.canonicalUrl,
+    profile_url: candidate.canonicalUrl,
+    name: 'HK Trader', handle: 'hk-trader', country: '香港', platform: 'Website',
+    summary: '香港交易社群', score: 80, language: 'zh', message: '你好，想先認識一下。'
+  }] }, [candidate], 55);
+  assert.equal(leads.length, 1);
+  assert.equal(leads[0].country, '香港');
+  assert.equal(leads[0].message_language, 'zh');
 });

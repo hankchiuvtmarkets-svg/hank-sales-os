@@ -8,7 +8,7 @@ create table if not exists public.agent_settings (
   daily_cost_limit_usd numeric(10,4) not null default 1,
   max_results_per_query integer not null default 5,
   min_lead_score integer not null default 55,
-  target_markets jsonb not null default '["韓國", "日本"]'::jsonb,
+  target_markets jsonb not null default '["韓國", "日本", "香港", "澳門"]'::jsonb,
   target_types jsonb not null default '["EA 開發者", "交易社群主", "IB", "金融內容創作者"]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -19,10 +19,15 @@ alter table public.agent_settings add column if not exists daily_search_limit in
 alter table public.agent_settings add column if not exists daily_cost_limit_usd numeric(10,4) not null default 1;
 alter table public.agent_settings add column if not exists max_results_per_query integer not null default 5;
 alter table public.agent_settings add column if not exists min_lead_score integer not null default 55;
-alter table public.agent_settings add column if not exists target_markets jsonb not null default '["韓國", "日本"]'::jsonb;
+alter table public.agent_settings add column if not exists target_markets jsonb not null default '["韓國", "日本", "香港", "澳門"]'::jsonb;
+alter table public.agent_settings alter column target_markets set default '["韓國", "日本", "香港", "澳門"]'::jsonb;
 alter table public.agent_settings add column if not exists target_types jsonb not null default '["EA 開發者", "交易社群主", "IB", "金融內容創作者"]'::jsonb;
 alter table public.agent_settings add column if not exists created_at timestamptz not null default now();
 alter table public.agent_settings add column if not exists updated_at timestamptz not null default now();
+update public.agent_settings
+set target_markets = '["韓國", "日本", "香港", "澳門"]'::jsonb,
+    updated_at = now()
+where target_markets in ('["韓國", "日本"]'::jsonb, '["日本", "韓國"]'::jsonb);
 
 create table if not exists public.search_runs (
   id uuid primary key default gen_random_uuid(),
