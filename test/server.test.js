@@ -22,9 +22,9 @@ test('cron authorization compares the bearer token', () => {
   ), false);
 });
 
-test('dashboard APIs fail closed when DASHBOARD_TOKEN is missing', () => {
+test('cloud CRM APIs fail closed when server-side login is missing', () => {
   const res = responseRecorder();
   assert.equal(requireDashboardAuthorized({ headers: {} }, res, {}), false);
   assert.equal(res.statusCode, 503);
-  assert.equal(res.payload.error, 'Missing DASHBOARD_TOKEN');
+  assert.equal(res.payload.error, 'Cloud CRM login is not configured');
 });
