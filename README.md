@@ -170,3 +170,5 @@ npm run check
 8. 按「開始持續搜尋」。有 OpenAI／Tavily keys 時立即執行；尚未設定時由安全排程持續更新。
 
 Vercel 會由 `vercel.json` 在每日 `01:00 UTC` 呼叫 `/api/cron-discover`。
+
+<!-- Preview redeploy: private environment configuration applied 2026-07-20 -->
