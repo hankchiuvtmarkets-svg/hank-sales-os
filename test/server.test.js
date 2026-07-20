@@ -28,3 +28,11 @@ test('cloud CRM APIs fail closed when server-side login is missing', () => {
   assert.equal(res.statusCode, 503);
   assert.equal(res.payload.error, 'Cloud CRM login is not configured');
 });
+
+test('cloud CRM APIs accept requests behind the private Vercel site', () => {
+  const res = responseRecorder();
+  assert.equal(requireDashboardAuthorized({ headers: {} }, res, {
+    VERCEL_PRIVATE_SITE: 'true'
+  }), true);
+  assert.equal(res.statusCode, null);
+});
