@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/automatic-feed.js": {
+      "includeFiles": "data/auto-leads.json"
+    }
+  },
   "crons": [
     {
       "path": "/api/cron-discover",
